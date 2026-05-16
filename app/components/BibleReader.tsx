@@ -774,7 +774,7 @@ export function BibleReader({
                         正在整理回答...
                       </div>
                     ) : (
-                      <pre>{answer || "輸入問題後，會按所選經文、譯本與原文源頭回答。"}</pre>
+                      <pre>{answer || "輸入問題後，會按所選經文、譯本與原文源頭作深入查經回答。"}</pre>
                     )}
                   </div>
                 </form>
