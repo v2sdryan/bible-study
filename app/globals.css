@@ -849,8 +849,13 @@ button:focus-visible {
   }
 
   .passage-heading {
+    position: sticky;
+    top: 0;
+    z-index: 12;
     align-items: end;
+    background: linear-gradient(180deg, var(--paper), var(--paper-deep));
     padding: 12px 12px;
+    box-shadow: 0 8px 18px rgba(70, 38, 8, 0.08);
   }
 
   .passage-heading h2 {
@@ -863,9 +868,13 @@ button:focus-visible {
   }
 
   .selection-toolbar {
+    position: sticky;
+    top: 72px;
+    z-index: 11;
     grid-template-columns: 1fr;
     gap: 10px;
     padding: 10px 12px;
+    box-shadow: 0 8px 18px rgba(70, 38, 8, 0.08);
   }
 
   .selection-actions {
@@ -910,6 +919,12 @@ button:focus-visible {
 
   .study-pane {
     min-height: 0;
+  }
+
+  .panel-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 12;
   }
 
   .panel-tabs button {

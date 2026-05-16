@@ -219,8 +219,15 @@ export function BibleReader({
 
   function scrollToStudyPane() {
     window.setTimeout(() => {
-      studyPaneRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
+      const pane = studyPaneRef.current;
+      if (!pane) return;
+      const top = pane.getBoundingClientRect().top + window.scrollY - 8;
+      window.scrollTo({ top, behavior: "smooth" });
+
+      window.setTimeout(() => {
+        window.scrollTo({ top, behavior: "auto" });
+      }, 420);
+    }, 120);
   }
 
   function openPanel(mode: "explain" | "compare" | "ask") {
