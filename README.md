@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 和合本原文查經
 
-## Getting Started
+繁體中文聖經閱讀、原文對照、Gemini 查經解釋工具。預設顯示 `ChiUn` 和合本繁體，舊約原文用 `WLC`，新約原文用 `Byz`，並保留 `TR` / `StatResGNT` 對照。
 
-First, run the development server:
+## Features
+
+- 和合本繁體閱讀器，支援書卷及章節切換
+- 每節經文有「原文解釋」及「原文對照」
+- 繁中、希伯來文、希臘文搜尋
+- Gemini API server-side route，預設 model 為 `gemini-3.1-flash-lite`
+- 可直接部署到 Vercel
+
+## Data Source
+
+Bible data is synced from [scrollmapper/bible_databases](https://github.com/scrollmapper/bible_databases).
+
+Included translations:
+
+- `ChiUn`: 和合本（繁體）
+- `WLC`: Westminster Leningrad Codex
+- `Byz`: Byzantine Textform 2013
+- `TR`: Textus Receptus
+- `StatResGNT`: Statistical Restoration Greek NT
+
+## Local Development
 
 ```bash
+npm install
+npm run sync:data
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+GEMINI_API_KEY=your_google_ai_studio_key
+GEMINI_MODEL=gemini-3.1-flash-lite
+```
 
-## Learn More
+Do not use `NEXT_PUBLIC_` for `GEMINI_API_KEY`; it must stay server-side.
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy To Vercel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Push this folder to GitHub.
+2. Import the GitHub repository in Vercel.
+3. Add `GEMINI_API_KEY` and `GEMINI_MODEL` in Vercel Project Settings.
+4. Deploy.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Vercel build command can stay as:
 
-## Deploy on Vercel
+```bash
+npm run build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The synced Bible JSON is committed in `data/bible/library.json`, so Vercel does not need to download the source data during build.
