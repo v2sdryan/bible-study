@@ -7,10 +7,16 @@ export const chineseBookNames: Record<string, string> = {
   Joshua: "約書亞記",
   Judges: "士師記",
   Ruth: "路得記",
+  "I Samuel": "撒母耳記上",
+  "II Samuel": "撒母耳記下",
   "1 Samuel": "撒母耳記上",
   "2 Samuel": "撒母耳記下",
+  "I Kings": "列王紀上",
+  "II Kings": "列王紀下",
   "1 Kings": "列王紀上",
   "2 Kings": "列王紀下",
+  "I Chronicles": "歷代志上",
+  "II Chronicles": "歷代志下",
   "1 Chronicles": "歷代志上",
   "2 Chronicles": "歷代志下",
   Ezra: "以斯拉記",
@@ -44,29 +50,46 @@ export const chineseBookNames: Record<string, string> = {
   John: "約翰福音",
   Acts: "使徒行傳",
   Romans: "羅馬書",
+  "I Corinthians": "哥林多前書",
+  "II Corinthians": "哥林多後書",
   "1 Corinthians": "哥林多前書",
   "2 Corinthians": "哥林多後書",
   Galatians: "加拉太書",
   Ephesians: "以弗所書",
   Philippians: "腓立比書",
   Colossians: "歌羅西書",
+  "I Thessalonians": "帖撒羅尼迦前書",
+  "II Thessalonians": "帖撒羅尼迦後書",
   "1 Thessalonians": "帖撒羅尼迦前書",
   "2 Thessalonians": "帖撒羅尼迦後書",
+  "I Timothy": "提摩太前書",
+  "II Timothy": "提摩太後書",
   "1 Timothy": "提摩太前書",
   "2 Timothy": "提摩太後書",
   Titus: "提多書",
   Philemon: "腓利門書",
   Hebrews: "希伯來書",
   James: "雅各書",
+  "I Peter": "彼得前書",
+  "II Peter": "彼得後書",
   "1 Peter": "彼得前書",
   "2 Peter": "彼得後書",
+  "I John": "約翰一書",
+  "II John": "約翰二書",
+  "III John": "約翰三書",
   "1 John": "約翰一書",
   "2 John": "約翰二書",
   "3 John": "約翰三書",
   Jude: "猶大書",
   Revelation: "啟示錄",
+  "Revelation of John": "啟示錄",
 };
 
 export function displayBookName(book: string) {
-  return chineseBookNames[book] ?? book;
+  const normalized = book
+    .replace(/^I /, "1 ")
+    .replace(/^II /, "2 ")
+    .replace(/^III /, "3 ")
+    .replace(/^IV /, "4 ");
+  return chineseBookNames[book] ?? chineseBookNames[normalized] ?? book;
 }
