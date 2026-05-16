@@ -18,6 +18,7 @@ function geminiApiKeys(browserApiKey?: string) {
   return [
     process.env.GEMINI_API_KEY,
     process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
     browserApiKey,
   ]
     .map((key) => key?.trim())
