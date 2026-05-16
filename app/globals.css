@@ -48,7 +48,8 @@ body {
 
 button,
 select,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -125,7 +126,8 @@ label {
 }
 
 select,
-input {
+input,
+textarea {
   min-height: 42px;
   border: 1px solid var(--line-soft);
   background: rgba(255, 248, 221, 0.82);
@@ -144,8 +146,17 @@ input {
   padding: 0 12px;
 }
 
+textarea {
+  width: 100%;
+  min-height: 104px;
+  resize: vertical;
+  padding: 10px 12px;
+  line-height: 1.55;
+}
+
 select:focus,
 input:focus,
+textarea:focus,
 button:focus-visible {
   outline: 3px solid rgba(140, 47, 18, 0.22);
   outline-offset: 2px;
@@ -324,7 +335,7 @@ button:focus-visible {
 
 .panel-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-bottom: 1px solid var(--line);
 }
 
@@ -382,6 +393,29 @@ button:focus-visible {
   font-family: var(--font-sans-tc), sans-serif;
   font-size: 15px;
   line-height: 1.78;
+}
+
+.question-box {
+  display: grid;
+  gap: 12px;
+}
+
+.question-box button {
+  min-height: 42px;
+  border: 1px solid var(--line-soft);
+  background: var(--accent);
+  color: var(--paper);
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  font-weight: 700;
+}
+
+.answer-box {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 12px;
 }
 
 .settings-layer {
@@ -591,7 +625,7 @@ button:focus-visible {
 
   .selectors {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 82px 46px;
+    grid-template-columns: minmax(0, 1fr) 54px;
     gap: 8px;
     align-items: end;
     width: 100%;
@@ -601,19 +635,25 @@ button:focus-visible {
     min-width: 0;
   }
 
+  .selectors label:first-child {
+    grid-column: 1 / -1;
+  }
+
   .selectors select,
   .selectors input,
+  .selectors textarea,
   .search-form select,
-  .search-form input {
+  .search-form input,
+  .search-form textarea {
     width: 100%;
     min-width: 0;
-    min-height: 46px;
+    min-height: 44px;
     font-size: 16px;
   }
 
   .settings-trigger {
-    width: 46px;
-    min-height: 46px;
+    width: 54px;
+    min-height: 44px;
   }
 
   .search-band {
@@ -696,7 +736,7 @@ button:focus-visible {
   .verse-actions {
     grid-column: 2;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     justify-content: stretch;
     width: 100%;
     margin-top: 2px;
@@ -705,7 +745,7 @@ button:focus-visible {
   .verse-actions button {
     min-width: 0;
     min-height: 40px;
-    padding: 0 8px;
+    padding: 0 6px;
     font-size: 12px;
   }
 
@@ -714,7 +754,10 @@ button:focus-visible {
   }
 
   .panel-tabs button {
-    min-height: 44px;
+    min-height: 42px;
+    gap: 4px;
+    padding: 0 6px;
+    font-size: 12px;
   }
 
   .panel-body {
@@ -743,28 +786,42 @@ button:focus-visible {
 
   .settings-panel {
     width: 100%;
-    max-height: min(86dvh, 720px);
+    max-height: min(78dvh, 620px);
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
-    padding: 14px;
+    padding: 12px;
   }
 
   .settings-heading {
     position: sticky;
-    top: -14px;
+    top: -12px;
     z-index: 1;
     background: var(--paper);
-    margin: -14px -14px 14px;
-    padding: 14px;
+    margin: -12px -12px 10px;
+    padding: 12px;
   }
 
   .settings-heading h2 {
-    font-size: 21px;
+    font-size: 18px;
+  }
+
+  .setting-row {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .setting-title {
+    font-size: 17px;
+  }
+
+  .source-settings {
+    margin-bottom: 10px;
+    padding-top: 10px;
   }
 
   .color-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -774,38 +831,60 @@ button:focus-visible {
   }
 
   .color-grid label {
-    grid-template-columns: 1fr 74px;
-    align-items: center;
+    padding: 8px;
   }
 
   .color-grid input[type="color"] {
-    min-height: 36px;
+    min-height: 34px;
+  }
+
+  .setting-row input[type="password"],
+  .setting-row input,
+  .setting-row select {
+    min-height: 40px;
+    font-size: 15px;
+  }
+
+  .settings-note,
+  .saved-message,
+  .source-suggestion {
+    font-size: 12px;
+    line-height: 1.45;
+    margin-bottom: 10px;
   }
 
   .settings-actions {
     position: sticky;
-    bottom: -14px;
-    margin: 0 -14px -14px;
-    padding: 10px 14px 14px;
+    bottom: -12px;
+    margin: 0 -12px -12px;
+    padding: 8px 12px 12px;
     background: var(--paper);
   }
 
   .settings-actions button {
     flex: 1;
-    min-height: 44px;
+    min-height: 40px;
   }
 }
 
 @media (max-width: 390px) {
   .selectors {
-    grid-template-columns: 1fr 70px 44px;
+    grid-template-columns: 1fr 50px;
   }
 
   .verse-actions {
     grid-template-columns: 1fr;
   }
 
+  .panel-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .search-form {
+    grid-template-columns: 1fr;
+  }
+
+  .color-grid {
     grid-template-columns: 1fr;
   }
 }

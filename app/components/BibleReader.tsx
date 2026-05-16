@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
+  CircleHelp,
   Languages,
   LibraryBig,
   Loader2,
@@ -122,9 +123,14 @@ export function BibleReader({
   const [activeVerse, setActiveVerse] = useState<PassageVerse | null>(
     initialPassage.verses[0] ?? null,
   );
-  const [panelMode, setPanelMode] = useState<"explain" | "compare">("compare");
+  const [panelMode, setPanelMode] = useState<"explain" | "compare" | "ask" | "closed">(
+    "compare",
+  );
   const [explanation, setExplanation] = useState("");
   const [isExplaining, setIsExplaining] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [isAnswering, setIsAnswering] = useState(false);
   const [isLoadingPassage, setIsLoadingPassage] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchTranslation, setSearchTranslation] = useState<TranslationId>("ChiUn");
@@ -219,6 +225,7 @@ export function BibleReader({
     setSelectedChapter(data.passage.chapter);
     setActiveVerse(data.passage.verses[0] ?? null);
     setExplanation("");
+    setAnswer("");
     setPanelMode("compare");
     setIsLoadingPassage(false);
   }
@@ -243,6 +250,31 @@ export function BibleReader({
     const data = await response.json();
     setExplanation(data.explanation ?? "暫時未能產生解釋。");
     setIsExplaining(false);
+  }
+
+  async function askVerseQuestion(event?: FormEvent) {
+    event?.preventDefault();
+    if (!activeVerse || !question.trim()) return;
+
+    setPanelMode("ask");
+    setIsAnswering(true);
+    setAnswer("");
+
+    const response = await fetch("/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        book: passage.book.id,
+        chapter: passage.chapter,
+        verse: activeVerse.verse,
+        question,
+        apiKey: settings.apiKey.trim() || undefined,
+        originalTranslation: selectedOriginalSource(),
+      }),
+    });
+    const data = await response.json();
+    setAnswer(data.answer ?? "暫時未能回答。");
+    setIsAnswering(false);
   }
 
   async function search(event: FormEvent) {
@@ -292,7 +324,7 @@ export function BibleReader({
             >
               {books.map((book) => (
                 <option key={book.id} value={book.id}>
-                  {book.displayName} {book.name}
+                  {book.displayName}
                 </option>
               ))}
             </select>
@@ -466,7 +498,7 @@ export function BibleReader({
             </div>
 
             <label className="setting-row">
-              <span>Gemini API key</span>
+                <span>Gemini API 金鑰</span>
               <input
                 type="password"
                 value={settings.apiKey}
@@ -509,10 +541,10 @@ export function BibleReader({
             onChange={(event) => setSearchTranslation(event.target.value as TranslationId)}
           >
             <option value="ChiUn">和合本</option>
-            <option value="WLC">WLC</option>
-            <option value="Byz">Byz</option>
-            <option value="TR">TR</option>
-            <option value="StatResGNT">StatResGNT</option>
+            <option value="WLC">威斯敏斯特列寧格勒抄本</option>
+            <option value="Byz">拜占庭文本形態</option>
+            <option value="TR">公認文本</option>
+            <option value="StatResGNT">統計復原希臘文新約</option>
           </select>
           <button type="submit" disabled={isSearching}>
             {isSearching ? <Loader2 className="spin" size={16} /> : <Search size={16} />}
@@ -546,7 +578,7 @@ export function BibleReader({
                 {passage.book.displayName} {passage.chapter}
               </h2>
             </div>
-            <span>{isLoadingPassage ? "讀取中" : "ChiUn 和合本"}</span>
+            <span>{isLoadingPassage ? "讀取中" : "《和合本》"}</span>
           </div>
 
           <div className="verses">
@@ -581,12 +613,23 @@ export function BibleReader({
                     <Languages size={15} />
                     原文對照
                   </button>
+                  <button
+                    onClick={() => {
+                      setActiveVerse(verse);
+                      setPanelMode("ask");
+                    }}
+                    title="問經文"
+                  >
+                    <CircleHelp size={15} />
+                    問經文
+                  </button>
                 </div>
               </article>
             ))}
           </div>
         </section>
 
+        {panelMode !== "closed" && (
         <aside className="study-pane" aria-label="原文查經面板">
           <div className="panel-tabs">
             <button
@@ -602,6 +645,17 @@ export function BibleReader({
             >
               <BookOpen size={16} />
               解釋
+            </button>
+            <button
+              className={panelMode === "ask" ? "selected" : ""}
+              onClick={() => setPanelMode("ask")}
+            >
+              <CircleHelp size={16} />
+              問經文
+            </button>
+            <button onClick={() => setPanelMode("closed")} title="關閉">
+              <X size={16} />
+              關閉
             </button>
           </div>
 
@@ -634,7 +688,7 @@ export function BibleReader({
                     )
                   ))}
                 </div>
-              ) : (
+              ) : panelMode === "explain" ? (
                 <div className="explanation">
                   {isExplaining ? (
                     <div className="loading-line">
@@ -645,12 +699,38 @@ export function BibleReader({
                     <pre>{explanation || "按「原文解釋」開始產生查經筆記。"}</pre>
                   )}
                 </div>
+              ) : (
+                <form className="question-box" onSubmit={askVerseQuestion}>
+                  <label>
+                    <span>問一條關於這節經文的問題</span>
+                    <textarea
+                      value={question}
+                      onChange={(event) => setQuestion(event.target.value)}
+                      placeholder="例如：這節經文講緊神嘅創造，定係講道成肉身？"
+                    />
+                  </label>
+                  <button type="submit" disabled={isAnswering || !question.trim()}>
+                    {isAnswering ? <Loader2 className="spin" size={16} /> : <CircleHelp size={16} />}
+                    用 Gemini 回答
+                  </button>
+                  <div className="explanation answer-box">
+                    {isAnswering ? (
+                      <div className="loading-line">
+                        <Loader2 className="spin" size={18} />
+                        正在整理回答...
+                      </div>
+                    ) : (
+                      <pre>{answer || "輸入問題後，會按目前經文、譯本與原文源頭回答。"}</pre>
+                    )}
+                  </div>
+                </form>
               )}
             </div>
           ) : (
             <p className="empty-state">選擇一節經文開始查考。</p>
           )}
         </aside>
+        )}
       </div>
     </main>
   );
