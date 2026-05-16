@@ -12,6 +12,7 @@ const requestSchema = z.object({
 });
 
 type VerseRecord = NonNullable<ReturnType<typeof getVerse>>;
+const quotaExhaustedMessage = "Gemini 回應失敗：網站預設 API key 已達使用限制。請在設定輸入你自己的 Gemini API key。";
 
 function geminiApiKeys(browserApiKey?: string) {
   return [
@@ -125,6 +126,9 @@ ${passageText}
     if (!response.ok) {
       const hasNextKey = index < apiKeys.length - 1;
       if (hasNextKey && shouldTryNextKey(response.status)) continue;
+      if (shouldTryNextKey(response.status)) {
+        return `${fallbackExplanation(verses)}\n\n${quotaExhaustedMessage}`;
+      }
       return `${fallbackExplanation(verses)}\n\nGemini 回應失敗：${response.status}`;
     }
 
@@ -137,7 +141,7 @@ ${passageText}
     );
   }
 
-  return `${fallbackExplanation(verses)}\n\nGemini 回應失敗：所有 API key 已達使用限制。`;
+  return `${fallbackExplanation(verses)}\n\n${quotaExhaustedMessage}`;
 }
 
 export async function POST(request: Request) {
@@ -178,5 +182,8 @@ export async function POST(request: Request) {
   );
 
   const explanation = await generateWithGemini(explanationVerses, parsed.data.apiKey);
-  return NextResponse.json({ explanation });
+  return NextResponse.json({
+    explanation,
+    quotaExhausted: explanation.includes(quotaExhaustedMessage),
+  });
 }

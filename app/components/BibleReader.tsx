@@ -137,6 +137,7 @@ export function BibleReader({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [apiLimitNoticeOpen, setApiLimitNoticeOpen] = useState(false);
   const [settings, setSettings] = useState<ReaderSettings>(defaultSettings);
   const [savedMessage, setSavedMessage] = useState("");
   const studyPaneRef = useRef<HTMLElement | null>(null);
@@ -288,6 +289,7 @@ export function BibleReader({
     });
     const data = await response.json();
     setExplanation(data.explanation ?? "暫時未能產生解釋。");
+    if (data.quotaExhausted) setApiLimitNoticeOpen(true);
     setIsExplaining(false);
   }
 
@@ -314,6 +316,7 @@ export function BibleReader({
     });
     const data = await response.json();
     setAnswer(data.answer ?? "暫時未能回答。");
+    if (data.quotaExhausted) setApiLimitNoticeOpen(true);
     setIsAnswering(false);
   }
 
@@ -564,6 +567,48 @@ export function BibleReader({
             </div>
             {savedMessage && <p className="saved-message">{savedMessage}</p>}
           </form>
+        </div>
+      )}
+
+      {apiLimitNoticeOpen && (
+        <div
+          className="notice-layer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Gemini API 配額提示"
+        >
+          <div className="notice-panel">
+            <div className="notice-icon">
+              <Sparkles size={22} />
+            </div>
+            <div>
+              <p className="eyebrow">Gemini API 配額提示</p>
+              <h2>網站預設配額暫時用完</h2>
+              <p>
+                兩條網站預設 Gemini API key 都已經達到 quota 或 rate limit。
+                你可以喺設定輸入自己嘅 Gemini API key，再重新做「原文解釋」或「問經文」。
+              </p>
+              <div className="notice-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApiLimitNoticeOpen(false);
+                    setSettingsOpen(true);
+                  }}
+                >
+                  <Settings size={16} />
+                  開啟設定
+                </button>
+                <button
+                  type="button"
+                  className="quiet-action"
+                  onClick={() => setApiLimitNoticeOpen(false)}
+                >
+                  稍後再試
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
