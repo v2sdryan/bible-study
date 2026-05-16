@@ -6,6 +6,7 @@ const requestSchema = z.object({
   book: z.string(),
   chapter: z.number().int().positive(),
   verse: z.number().int().positive(),
+  apiKey: z.string().trim().optional(),
 });
 
 function fallbackExplanation(verse: NonNullable<ReturnType<typeof getVerse>>) {
@@ -21,12 +22,15 @@ function fallbackExplanation(verse: NonNullable<ReturnType<typeof getVerse>>) {
     verse.original ? `原文：${verse.original}` : "原文：此節暫未有對應原文資料。",
     "",
     source,
-    "Gemini API key 未設定，所以暫時顯示基本原文對照。設定 GEMINI_API_KEY 後，這裡會產生查經語氣的繁體中文解釋。",
+    "Gemini API key 未設定，所以暫時顯示基本原文對照。你可以在右上角設定輸入 API key，或在 Vercel 設定 GEMINI_API_KEY。",
   ].join("\n");
 }
 
-async function generateWithGemini(verse: NonNullable<ReturnType<typeof getVerse>>) {
-  const apiKey = process.env.GEMINI_API_KEY;
+async function generateWithGemini(
+  verse: NonNullable<ReturnType<typeof getVerse>>,
+  browserApiKey?: string,
+) {
+  const apiKey = browserApiKey || process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
   if (!apiKey) return fallbackExplanation(verse);
@@ -87,6 +91,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Verse not found" }, { status: 404 });
   }
 
-  const explanation = await generateWithGemini(verse);
+  const explanation = await generateWithGemini(verse, parsed.data.apiKey);
   return NextResponse.json({ explanation });
 }

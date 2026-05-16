@@ -1,13 +1,17 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   Languages,
   LibraryBig,
   Loader2,
+  RotateCcw,
+  Save,
   Search,
+  Settings,
   Sparkles,
+  X,
 } from "lucide-react";
 
 type Testament = "old" | "new";
@@ -44,6 +48,32 @@ type SearchResult = {
   translation: TranslationId;
 };
 
+type ReaderSettings = {
+  fontSize: number;
+  pageBackground: string;
+  paperBackground: string;
+  panelBackground: string;
+  textColor: string;
+  softTextColor: string;
+  accentColor: string;
+  lineColor: string;
+  apiKey: string;
+};
+
+const defaultSettings: ReaderSettings = {
+  fontSize: 20,
+  pageBackground: "#f7edc8",
+  paperBackground: "#fff8dd",
+  panelBackground: "#faefc2",
+  textColor: "#2d1b0e",
+  softTextColor: "#71513a",
+  accentColor: "#8c2f12",
+  lineColor: "#b86a1e",
+  apiKey: "",
+};
+
+const settingStorageKey = "bible-study-reader-settings";
+
 const originalLabels: Record<TranslationId, string> = {
   ChiUn: "和合本",
   WLC: "WLC 希伯來文",
@@ -74,11 +104,61 @@ export function BibleReader({
   const [searchTranslation, setSearchTranslation] = useState<TranslationId>("ChiUn");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<ReaderSettings>(defaultSettings);
+  const [savedMessage, setSavedMessage] = useState("");
 
   const currentBook = useMemo(
     () => books.find((book) => book.id === selectedBook) ?? books[0],
     [books, selectedBook],
   );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const saved = window.localStorage.getItem(settingStorageKey);
+      if (!saved) return;
+      try {
+        setSettings({ ...defaultSettings, ...JSON.parse(saved) });
+      } catch {
+        window.localStorage.removeItem(settingStorageKey);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--background", settings.pageBackground);
+    root.style.setProperty("--foreground", settings.textColor);
+    root.style.setProperty("--ink-soft", settings.softTextColor);
+    root.style.setProperty("--paper", settings.paperBackground);
+    root.style.setProperty("--paper-deep", settings.panelBackground);
+    root.style.setProperty("--line", settings.lineColor);
+    root.style.setProperty("--accent", settings.accentColor);
+    root.style.setProperty("--accent-strong", settings.accentColor);
+    root.style.setProperty("--verse-font-size", `${settings.fontSize}px`);
+  }, [settings]);
+
+  function updateSetting<Key extends keyof ReaderSettings>(
+    key: Key,
+    value: ReaderSettings[Key],
+  ) {
+    setSettings((current) => ({ ...current, [key]: value }));
+    setSavedMessage("");
+  }
+
+  function saveSettings(event?: FormEvent) {
+    event?.preventDefault();
+    window.localStorage.setItem(settingStorageKey, JSON.stringify(settings));
+    setSavedMessage("已儲存到此瀏覽器");
+  }
+
+  function resetSettings() {
+    setSettings(defaultSettings);
+    window.localStorage.removeItem(settingStorageKey);
+    setSavedMessage("已重設");
+  }
 
   async function loadPassage(book = selectedBook, chapter = selectedChapter) {
     setIsLoadingPassage(true);
@@ -108,6 +188,7 @@ export function BibleReader({
         book: passage.book.id,
         chapter: passage.chapter,
         verse: verse.verse,
+        apiKey: settings.apiKey.trim() || undefined,
       }),
     });
     const data = await response.json();
@@ -187,8 +268,137 @@ export function BibleReader({
               )}
             </select>
           </label>
+
+          <button
+            type="button"
+            className="settings-trigger"
+            onClick={() => setSettingsOpen(true)}
+            title="設定"
+            aria-label="設定"
+          >
+            <Settings size={19} />
+          </button>
         </div>
       </section>
+
+      {settingsOpen && (
+        <div className="settings-layer" role="dialog" aria-modal="true" aria-label="閱讀設定">
+          <form className="settings-panel" onSubmit={saveSettings}>
+            <div className="settings-heading">
+              <div>
+                <p className="eyebrow">閱讀設定</p>
+                <h2>字體、顏色、Gemini API</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setSettingsOpen(false)}
+                aria-label="關閉設定"
+                title="關閉"
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <label className="setting-row">
+              <span>經文字體大小：{settings.fontSize}px</span>
+              <input
+                type="range"
+                min="16"
+                max="30"
+                value={settings.fontSize}
+                onChange={(event) => updateSetting("fontSize", Number(event.target.value))}
+              />
+            </label>
+
+            <div className="color-grid">
+              <label>
+                <span>頁面背景</span>
+                <input
+                  type="color"
+                  value={settings.pageBackground}
+                  onChange={(event) => updateSetting("pageBackground", event.target.value)}
+                />
+              </label>
+              <label>
+                <span>經文背景</span>
+                <input
+                  type="color"
+                  value={settings.paperBackground}
+                  onChange={(event) => updateSetting("paperBackground", event.target.value)}
+                />
+              </label>
+              <label>
+                <span>面板背景</span>
+                <input
+                  type="color"
+                  value={settings.panelBackground}
+                  onChange={(event) => updateSetting("panelBackground", event.target.value)}
+                />
+              </label>
+              <label>
+                <span>文字顏色</span>
+                <input
+                  type="color"
+                  value={settings.textColor}
+                  onChange={(event) => updateSetting("textColor", event.target.value)}
+                />
+              </label>
+              <label>
+                <span>輔助文字</span>
+                <input
+                  type="color"
+                  value={settings.softTextColor}
+                  onChange={(event) => updateSetting("softTextColor", event.target.value)}
+                />
+              </label>
+              <label>
+                <span>重點顏色</span>
+                <input
+                  type="color"
+                  value={settings.accentColor}
+                  onChange={(event) => updateSetting("accentColor", event.target.value)}
+                />
+              </label>
+              <label>
+                <span>線條顏色</span>
+                <input
+                  type="color"
+                  value={settings.lineColor}
+                  onChange={(event) => updateSetting("lineColor", event.target.value)}
+                />
+              </label>
+            </div>
+
+            <label className="setting-row">
+              <span>Gemini API key</span>
+              <input
+                type="password"
+                value={settings.apiKey}
+                placeholder="AIza..."
+                autoComplete="off"
+                onChange={(event) => updateSetting("apiKey", event.target.value)}
+              />
+            </label>
+
+            <p className="settings-note">
+              API key 只會儲存在此瀏覽器，不會寫入 GitHub。公開電腦請不要儲存私人 key。
+            </p>
+
+            <div className="settings-actions">
+              <button type="button" onClick={resetSettings}>
+                <RotateCcw size={16} />
+                重設
+              </button>
+              <button type="submit">
+                <Save size={16} />
+                儲存設定
+              </button>
+            </div>
+            {savedMessage && <p className="saved-message">{savedMessage}</p>}
+          </form>
+        </div>
+      )}
 
       <section className="search-band" aria-label="聖經搜尋">
         <form onSubmit={search} className="search-form">

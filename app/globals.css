@@ -12,6 +12,7 @@
   --accent-strong: #6f210b;
   --olive: #4f5b32;
   --shadow: 0 20px 70px rgba(70, 38, 8, 0.16);
+  --verse-font-size: 20px;
 }
 
 @theme inline {
@@ -33,7 +34,7 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    linear-gradient(90deg, rgba(255, 248, 221, 0.92), rgba(247, 237, 200, 0.7)),
+    linear-gradient(90deg, color-mix(in srgb, var(--paper) 88%, transparent), var(--background)),
     repeating-linear-gradient(
       0deg,
       rgba(111, 33, 11, 0.035),
@@ -161,7 +162,7 @@ button:focus-visible {
   gap: 8px;
   align-items: center;
   border: 1px solid var(--line);
-  background: rgba(255, 248, 221, 0.72);
+  background: color-mix(in srgb, var(--paper) 84%, transparent);
   padding: 8px;
   box-shadow: var(--shadow);
 }
@@ -172,7 +173,10 @@ button:focus-visible {
 
 .search-form button,
 .verse-actions button,
-.panel-tabs button {
+.panel-tabs button,
+.settings-trigger,
+.settings-actions button,
+.icon-button {
   min-height: 38px;
   border: 1px solid var(--line-soft);
   background: var(--foreground);
@@ -185,6 +189,12 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.settings-trigger,
+.icon-button {
+  width: 42px;
+  padding: 0;
+}
+
 .search-results {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -195,7 +205,7 @@ button:focus-visible {
   display: grid;
   gap: 3px;
   border: 1px solid var(--line-soft);
-  background: rgba(255, 248, 221, 0.78);
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
   color: var(--foreground);
   padding: 10px 12px;
   text-align: left;
@@ -219,7 +229,7 @@ button:focus-visible {
 .passage-pane,
 .study-pane {
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 248, 221, 0.96), rgba(250, 239, 194, 0.94));
+  background: linear-gradient(180deg, var(--paper), var(--paper-deep));
   box-shadow: var(--shadow);
 }
 
@@ -272,7 +282,7 @@ button:focus-visible {
 }
 
 .verse.active {
-  background: rgba(184, 106, 30, 0.09);
+  background: color-mix(in srgb, var(--line) 12%, transparent);
 }
 
 .verse-number {
@@ -287,7 +297,7 @@ button:focus-visible {
 .verse p {
   margin: 0;
   font-family: var(--font-serif-tc), serif;
-  font-size: clamp(17px, 2vw, 22px);
+  font-size: clamp(16px, var(--verse-font-size), 30px);
   font-weight: 500;
   line-height: 1.82;
 }
@@ -342,7 +352,7 @@ button:focus-visible {
 
 .comparison div {
   border-left: 4px solid var(--line);
-  background: rgba(255, 248, 221, 0.7);
+  background: color-mix(in srgb, var(--paper) 84%, transparent);
   padding: 10px 12px;
 }
 
@@ -366,6 +376,106 @@ button:focus-visible {
   font-family: var(--font-sans-tc), sans-serif;
   font-size: 15px;
   line-height: 1.78;
+}
+
+.settings-layer {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: start end;
+  padding: 18px;
+  background: rgba(25, 16, 9, 0.28);
+}
+
+.settings-panel {
+  width: min(470px, calc(100vw - 28px));
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: 0 30px 90px rgba(30, 16, 6, 0.35);
+  padding: 18px;
+}
+
+.settings-heading {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.settings-heading h2 {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-serif-tc), serif;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.setting-row {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.setting-row input[type="password"] {
+  min-height: 44px;
+}
+
+.setting-row input[type="range"] {
+  width: 100%;
+  min-height: 32px;
+  accent-color: var(--accent);
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.color-grid label {
+  border: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--paper-deep) 60%, var(--paper));
+  padding: 10px;
+}
+
+.color-grid input[type="color"] {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.settings-note,
+.saved-message {
+  margin: 0 0 14px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-actions button:last-child {
+  background: var(--accent);
+}
+
+.saved-message {
+  margin: 10px 0 0;
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .loading-line,
