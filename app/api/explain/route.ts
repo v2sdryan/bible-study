@@ -9,19 +9,38 @@ const requestSchema = z.object({
   apiKey: z.string().trim().optional(),
 });
 
-function fallbackExplanation(verse: NonNullable<ReturnType<typeof getVerse>>) {
-  const source =
+function originalSourceName(translation: string) {
+  if (translation === "WLC") return "WLC: Westminster Leningrad Codex";
+  if (translation === "Byz") return "Byz: Byzantine Textform 2013";
+  if (translation === "TR") return "TR: Textus Receptus";
+  if (translation === "StatResGNT") return "StatResGNT: Statistical Restoration Greek NT";
+  return translation;
+}
+
+function sourceHeader(verse: NonNullable<ReturnType<typeof getVerse>>) {
+  const testamentNote =
     verse.originalTranslation === "WLC"
-      ? "舊約原文以希伯來文為主；但以理書、以斯拉記等部分段落含亞蘭文。"
-      : "新約文本以通用希臘文為主；福音書處於猶太及亞蘭語背景，經文本身保留亞蘭詞時會特別留意。";
+      ? "舊約原文底本。主要為希伯來文；但以理書、以斯拉記等部分段落含亞蘭文。"
+      : "新約原文底本。主要為通用希臘文；福音書有猶太及亞蘭語背景，但文本底本按希臘文處理。";
 
   return [
+    "【釋經來源】",
+    "中文譯本：ChiUn 和合本（繁體字）",
+    `原文底本：${originalSourceName(verse.originalTranslation)}`,
+    "資料來源：scrollmapper/bible_databases GitHub repository",
+    `原文判斷：${testamentNote}`,
+  ].join("\n");
+}
+
+function fallbackExplanation(verse: NonNullable<ReturnType<typeof getVerse>>) {
+  return [
+    sourceHeader(verse),
+    "",
     `【${verse.book.displayName} ${verse.chapter}:${verse.verse}】`,
     "",
     `和合本：${verse.chinese}`,
     verse.original ? `原文：${verse.original}` : "原文：此節暫未有對應原文資料。",
     "",
-    source,
     "Gemini API key 未設定，所以暫時顯示基本原文對照。你可以在右上角設定輸入 API key，或在 Vercel 設定 GEMINI_API_KEY。",
   ].join("\n");
 }
@@ -39,14 +58,17 @@ async function generateWithGemini(
 請用繁體中文、查經語氣解釋以下經文，保持謹慎，不要作過度斷言。
 
 要求：
-1. 先簡短說明經文主旨。
-2. 解釋原文中 2-5 個重要字詞，包含原文字詞、簡短音譯或讀音提示、字義。
-3. 如屬舊約，指出希伯來文/亞蘭文背景；如屬新約，指出希臘文背景，有亞蘭語境時只作背景提醒。
-4. 最後給一段查經反思，避免直接代替講章。
+1. 回答開頭必須逐字保留以下「釋經來源」段落，不可刪走、不可改寫、不可省略。
+2. 然後簡短說明經文主旨。
+3. 解釋原文中 2-5 個重要字詞，包含原文字詞、簡短音譯或讀音提示、字義。
+4. 如屬舊約，指出希伯來文/亞蘭文背景；如屬新約，指出希臘文背景，有亞蘭語境時只作背景提醒。
+5. 最後給一段查經反思，避免直接代替講章。
+
+${sourceHeader(verse)}
 
 經文：${verse.book.displayName} ${verse.chapter}:${verse.verse}
 和合本：${verse.chinese}
-原文版本：${verse.originalTranslation}
+原文底本：${originalSourceName(verse.originalTranslation)}
 原文：${verse.original || "未有原文資料"}
 `.trim();
 
