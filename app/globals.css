@@ -162,28 +162,6 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-.search-band {
-  display: grid;
-  gap: 10px;
-  padding: 16px 0 18px;
-}
-
-.search-form {
-  display: grid;
-  grid-template-columns: auto minmax(160px, 1fr) 150px auto;
-  gap: 8px;
-  align-items: center;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper) 84%, transparent);
-  padding: 8px;
-  box-shadow: var(--shadow);
-}
-
-.search-form svg {
-  color: var(--accent);
-}
-
-.search-form button,
 .selection-actions button,
 .panel-tabs button,
 .settings-trigger,
@@ -205,30 +183,6 @@ button:focus-visible {
 .icon-button {
   width: 42px;
   padding: 0;
-}
-
-.search-results {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 8px;
-}
-
-.search-results button {
-  display: grid;
-  gap: 3px;
-  border: 1px solid var(--line-soft);
-  background: color-mix(in srgb, var(--paper) 86%, transparent);
-  color: var(--foreground);
-  padding: 10px 12px;
-  text-align: left;
-}
-
-.search-results span {
-  overflow: hidden;
-  color: var(--ink-soft);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .content-grid {
@@ -787,10 +741,7 @@ button:focus-visible {
 
   .selectors select,
   .selectors input,
-  .selectors textarea,
-  .search-form select,
-  .search-form input,
-  .search-form textarea {
+  .selectors textarea {
     width: 100%;
     min-width: 0;
     min-height: 44px;
@@ -800,48 +751,6 @@ button:focus-visible {
   .settings-trigger {
     width: 54px;
     min-height: 44px;
-  }
-
-  .search-band {
-    padding: 10px 0 12px;
-  }
-
-  .search-form {
-    grid-template-columns: 1fr 106px;
-    gap: 8px;
-    width: 100%;
-    padding: 8px;
-    box-shadow: none;
-  }
-
-  .search-form > svg {
-    display: none;
-  }
-
-  .search-form input {
-    grid-column: 1 / -1;
-  }
-
-  .search-form button {
-    min-height: 46px;
-    padding-inline: 10px;
-  }
-
-  .search-results {
-    grid-template-columns: 1fr;
-    max-height: 238px;
-    overflow: auto;
-  }
-
-  .search-results button {
-    padding: 11px 12px;
-  }
-
-  .search-results span {
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
   }
 
   .content-grid {
@@ -1085,10 +994,6 @@ button:focus-visible {
 
   .panel-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .search-form {
-    grid-template-columns: 1fr;
   }
 
   .color-grid {

@@ -9,7 +9,6 @@ import {
   Loader2,
   RotateCcw,
   Save,
-  Search,
   Settings,
   Sparkles,
   X,
@@ -38,15 +37,6 @@ type Passage = {
   book: BookOption;
   chapter: number;
   verses: PassageVerse[];
-};
-
-type SearchResult = {
-  book: string;
-  displayBook: string;
-  chapter: number;
-  verse: number;
-  text: string;
-  translation: TranslationId;
 };
 
 type ReaderSettings = {
@@ -132,10 +122,6 @@ export function BibleReader({
   const [answer, setAnswer] = useState("");
   const [isAnswering, setIsAnswering] = useState(false);
   const [isLoadingPassage, setIsLoadingPassage] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchTranslation, setSearchTranslation] = useState<TranslationId>("ChiUn");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [apiLimitNoticeOpen, setApiLimitNoticeOpen] = useState(false);
   const [settings, setSettings] = useState<ReaderSettings>(defaultSettings);
@@ -325,27 +311,6 @@ export function BibleReader({
     setAnswer(data.answer ?? "暫時未能回答。");
     if (data.quotaExhausted) setApiLimitNoticeOpen(true);
     setIsAnswering(false);
-  }
-
-  async function search(event: FormEvent) {
-    event.preventDefault();
-    if (!searchQuery.trim()) return;
-    setIsSearching(true);
-    const response = await fetch(
-      `/api/search?q=${encodeURIComponent(searchQuery)}&translation=${searchTranslation}`,
-    );
-    const data = await response.json();
-    setResults(data.results ?? []);
-    setIsSearching(false);
-  }
-
-  async function jumpToResult(result: SearchResult) {
-    await loadPassage(result.book, result.chapter);
-    setTimeout(() => {
-      document
-        .querySelector(`[data-verse="${result.book}-${result.chapter}-${result.verse}"]`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 120);
   }
 
   return (
@@ -618,48 +583,6 @@ export function BibleReader({
           </div>
         </div>
       )}
-
-      <section className="search-band" aria-label="聖經搜尋">
-        <form onSubmit={search} className="search-form">
-          <Search size={18} aria-hidden="true" />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="搜尋和合本、希伯來文或希臘文..."
-          />
-          <select
-            aria-label="搜尋版本"
-            value={searchTranslation}
-            onChange={(event) => setSearchTranslation(event.target.value as TranslationId)}
-          >
-            <option value="ChiUn">和合本</option>
-            <option value="WLC">威斯敏斯特列寧格勒抄本</option>
-            <option value="Byz">拜占庭文本形態</option>
-            <option value="TR">公認文本</option>
-            <option value="StatResGNT">統計復原希臘文新約</option>
-          </select>
-          <button type="submit" disabled={isSearching}>
-            {isSearching ? <Loader2 className="spin" size={16} /> : <Search size={16} />}
-            搜尋
-          </button>
-        </form>
-
-        {results.length > 0 && (
-          <div className="search-results">
-            {results.slice(0, 8).map((result) => (
-              <button
-                key={`${result.translation}-${result.book}-${result.chapter}-${result.verse}`}
-                onClick={() => void jumpToResult(result)}
-              >
-                <strong>
-                  {result.displayBook} {result.chapter}:{result.verse}
-                </strong>
-                <span>{result.text}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
 
       <div className="content-grid">
         <section className="passage-pane" aria-label="經文">
