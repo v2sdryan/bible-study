@@ -13,6 +13,20 @@ const requestSchema = z.object({
 
 type VerseRecord = NonNullable<ReturnType<typeof getVerse>>;
 
+function geminiApiKeys(browserApiKey?: string) {
+  return [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    browserApiKey,
+  ]
+    .map((key) => key?.trim())
+    .filter((key): key is string => Boolean(key));
+}
+
+function shouldTryNextKey(status: number) {
+  return status === 429;
+}
+
 function originalSourceName(translation: string) {
   if (translation === "WLC") return "《威斯敏斯特列寧格勒抄本》";
   if (translation === "Byz") return "《拜占庭文本形態二零一三》";
@@ -59,10 +73,10 @@ async function generateWithGemini(
   verses: VerseRecord[],
   browserApiKey?: string,
 ) {
-  const apiKey = process.env.GEMINI_API_KEY || browserApiKey;
+  const apiKeys = geminiApiKeys(browserApiKey);
   const model = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
-  if (!apiKey) return fallbackExplanation(verses);
+  if (!apiKeys.length) return fallbackExplanation(verses);
 
   const firstVerse = verses[0];
   const passageText = verses
@@ -92,32 +106,38 @@ ${passageText}
 原文底本：${originalSourceName(firstVerse.originalTranslation)}
 `.trim();
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.35,
-          maxOutputTokens: 900,
-        },
-      }),
-    },
-  );
+  for (const [index, apiKey] of apiKeys.entries()) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.35,
+            maxOutputTokens: 900,
+          },
+        }),
+      },
+    );
 
-  if (!response.ok) {
-    return `${fallbackExplanation(verses)}\n\nGemini 回應失敗：${response.status}`;
+    if (!response.ok) {
+      const hasNextKey = index < apiKeys.length - 1;
+      if (hasNextKey && shouldTryNextKey(response.status)) continue;
+      return `${fallbackExplanation(verses)}\n\nGemini 回應失敗：${response.status}`;
+    }
+
+    const data = await response.json();
+    return (
+      data?.candidates?.[0]?.content?.parts
+        ?.map((part: { text?: string }) => part.text ?? "")
+        .join("")
+        .trim() || fallbackExplanation(verses)
+    );
   }
 
-  const data = await response.json();
-  return (
-    data?.candidates?.[0]?.content?.parts
-      ?.map((part: { text?: string }) => part.text ?? "")
-      .join("")
-      .trim() || fallbackExplanation(verses)
-  );
+  return `${fallbackExplanation(verses)}\n\nGemini 回應失敗：所有 API key 已達使用限制。`;
 }
 
 export async function POST(request: Request) {
