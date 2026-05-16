@@ -5,10 +5,13 @@ import { getVerse } from "@/lib/bible";
 const requestSchema = z.object({
   book: z.string(),
   chapter: z.number().int().positive(),
-  verse: z.number().int().positive(),
+  verse: z.number().int().positive().optional(),
+  verses: z.array(z.number().int().positive()).optional(),
   apiKey: z.string().trim().optional(),
   originalTranslation: z.enum(["WLC", "Byz", "TR", "StatResGNT"]).optional(),
 });
+
+type VerseRecord = NonNullable<ReturnType<typeof getVerse>>;
 
 function originalSourceName(translation: string) {
   if (translation === "WLC") return "《威斯敏斯特列寧格勒抄本》";
@@ -18,7 +21,7 @@ function originalSourceName(translation: string) {
   return translation;
 }
 
-function sourceHeader(verse: NonNullable<ReturnType<typeof getVerse>>) {
+function sourceHeader(verse: VerseRecord) {
   const testamentNote =
     verse.originalTranslation === "WLC"
       ? "舊約原文底本。主要為希伯來文；但以理書、以斯拉記等部分段落含亞蘭文。"
@@ -33,27 +36,44 @@ function sourceHeader(verse: NonNullable<ReturnType<typeof getVerse>>) {
   ].join("\n");
 }
 
-function fallbackExplanation(verse: NonNullable<ReturnType<typeof getVerse>>) {
+function fallbackExplanation(verses: VerseRecord[]) {
+  const firstVerse = verses[0];
   return [
-    sourceHeader(verse),
+    sourceHeader(firstVerse),
     "",
-    `【${verse.book.displayName} ${verse.chapter}:${verse.verse}】`,
+    `【${firstVerse.book.displayName} ${firstVerse.chapter}:${verses.map((verse) => verse.verse).join("、")}】`,
     "",
-    `和合本：${verse.chinese}`,
-    verse.original ? `原文：${verse.original}` : "原文：此節暫未有對應原文資料。",
+    ...verses.flatMap((verse) => [
+      `第 ${verse.verse} 節和合本：${verse.chinese}`,
+      verse.original
+        ? `第 ${verse.verse} 節原文：${verse.original}`
+        : `第 ${verse.verse} 節原文：此節暫未有對應原文資料。`,
+      "",
+    ]),
     "",
     "Gemini API key 未設定，所以暫時顯示基本原文對照。你可以在右上角設定輸入 API key，或在 Vercel 設定 GEMINI_API_KEY。",
   ].join("\n");
 }
 
 async function generateWithGemini(
-  verse: NonNullable<ReturnType<typeof getVerse>>,
+  verses: VerseRecord[],
   browserApiKey?: string,
 ) {
   const apiKey = process.env.GEMINI_API_KEY || browserApiKey;
   const model = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
-  if (!apiKey) return fallbackExplanation(verse);
+  if (!apiKey) return fallbackExplanation(verses);
+
+  const firstVerse = verses[0];
+  const passageText = verses
+    .map((verse) =>
+      [
+        `${verse.book.displayName} ${verse.chapter}:${verse.verse}`,
+        `和合本：${verse.chinese}`,
+        `原文：${verse.original || "未有原文資料"}`,
+      ].join("\n"),
+    )
+    .join("\n\n");
 
   const prompt = `
 請用繁體中文、查經語氣解釋以下經文，保持謹慎，不要作過度斷言。
@@ -65,12 +85,11 @@ async function generateWithGemini(
 4. 如屬舊約，指出希伯來文/亞蘭文背景；如屬新約，指出希臘文背景，有亞蘭語境時只作背景提醒。
 5. 最後給一段查經反思，避免直接代替講章。
 
-${sourceHeader(verse)}
+${sourceHeader(firstVerse)}
 
-經文：${verse.book.displayName} ${verse.chapter}:${verse.verse}
-和合本：${verse.chinese}
-原文底本：${originalSourceName(verse.originalTranslation)}
-原文：${verse.original || "未有原文資料"}
+所選經文：
+${passageText}
+原文底本：${originalSourceName(firstVerse.originalTranslation)}
 `.trim();
 
   const response = await fetch(
@@ -89,7 +108,7 @@ ${sourceHeader(verse)}
   );
 
   if (!response.ok) {
-    return `${fallbackExplanation(verse)}\n\nGemini 回應失敗：${response.status}`;
+    return `${fallbackExplanation(verses)}\n\nGemini 回應失敗：${response.status}`;
   }
 
   const data = await response.json();
@@ -97,7 +116,7 @@ ${sourceHeader(verse)}
     data?.candidates?.[0]?.content?.parts
       ?.map((part: { text?: string }) => part.text ?? "")
       .join("")
-      .trim() || fallbackExplanation(verse)
+      .trim() || fallbackExplanation(verses)
   );
 }
 
@@ -109,21 +128,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid explanation request" }, { status: 400 });
   }
 
-  const verse = getVerse(parsed.data.book, parsed.data.chapter, parsed.data.verse);
-  if (!verse) {
-    return NextResponse.json({ error: "Verse not found" }, { status: 404 });
+  const verseNumbers = parsed.data.verses?.length
+    ? parsed.data.verses
+    : parsed.data.verse
+      ? [parsed.data.verse]
+      : [];
+
+  if (!verseNumbers.length) {
+    return NextResponse.json({ error: "請選擇經文" }, { status: 400 });
+  }
+
+  const verses = verseNumbers
+    .slice(0, 12)
+    .map((verseNumber) => getVerse(parsed.data.book, parsed.data.chapter, verseNumber));
+
+  if (verses.some((verse) => !verse)) {
+    return NextResponse.json({ error: "找不到經文" }, { status: 404 });
   }
 
   const requestedOriginal = parsed.data.originalTranslation;
-  const explanationVerse =
+  const explanationVerses = (verses as VerseRecord[]).map((verse) =>
     requestedOriginal && verse.alternates[requestedOriginal]
       ? {
           ...verse,
           originalTranslation: requestedOriginal,
           original: verse.alternates[requestedOriginal] ?? verse.original,
         }
-      : verse;
+      : verse,
+  );
 
-  const explanation = await generateWithGemini(explanationVerse, parsed.data.apiKey);
+  const explanation = await generateWithGemini(explanationVerses, parsed.data.apiKey);
   return NextResponse.json({ explanation });
 }

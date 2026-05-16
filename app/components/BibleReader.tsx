@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
   CircleHelp,
@@ -120,8 +120,8 @@ export function BibleReader({
   const [passage, setPassage] = useState(initialPassage);
   const [selectedBook, setSelectedBook] = useState(initialPassage.book.id);
   const [selectedChapter, setSelectedChapter] = useState(initialPassage.chapter);
-  const [activeVerse, setActiveVerse] = useState<PassageVerse | null>(
-    initialPassage.verses[0] ?? null,
+  const [selectedVerses, setSelectedVerses] = useState<number[]>(
+    initialPassage.verses[0] ? [initialPassage.verses[0].verse] : [],
   );
   const [panelMode, setPanelMode] = useState<"explain" | "compare" | "ask" | "closed">(
     "compare",
@@ -139,6 +139,7 @@ export function BibleReader({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<ReaderSettings>(defaultSettings);
   const [savedMessage, setSavedMessage] = useState("");
+  const studyPaneRef = useRef<HTMLElement | null>(null);
 
   const currentBook = useMemo(
     () => books.find((book) => book.id === selectedBook) ?? books[0],
@@ -198,6 +199,44 @@ export function BibleReader({
       : settings.newOriginalSource;
   }
 
+  const selectedVerseList = useMemo(
+    () =>
+      passage.verses.filter((verse) =>
+        selectedVerses.includes(verse.verse),
+      ),
+    [passage.verses, selectedVerses],
+  );
+
+  function selectedReference() {
+    if (!selectedVerseList.length) {
+      return `${passage.book.displayName} ${passage.chapter}`;
+    }
+    return `${passage.book.displayName} ${passage.chapter}:${selectedVerseList
+      .map((verse) => verse.verse)
+      .join("、")}`;
+  }
+
+  function scrollToStudyPane() {
+    window.setTimeout(() => {
+      studyPaneRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }
+
+  function openPanel(mode: "explain" | "compare" | "ask") {
+    setPanelMode(mode);
+    scrollToStudyPane();
+  }
+
+  function toggleVerseSelection(verse: PassageVerse) {
+    setSelectedVerses((current) => {
+      const exists = current.includes(verse.verse);
+      const next = exists
+        ? current.filter((item) => item !== verse.verse)
+        : [...current, verse.verse];
+      return next.sort((a, b) => a - b);
+    });
+  }
+
   function applyOriginalSourceRequest() {
     const suggestion = matchOriginalSource(settings.originalSourceRequest);
     let nextSettings = { ...settings, originalSourceSuggestion: suggestion };
@@ -223,16 +262,16 @@ export function BibleReader({
     setPassage(data.passage);
     setSelectedBook(data.passage.book.id);
     setSelectedChapter(data.passage.chapter);
-    setActiveVerse(data.passage.verses[0] ?? null);
+    setSelectedVerses(data.passage.verses[0] ? [data.passage.verses[0].verse] : []);
     setExplanation("");
     setAnswer("");
     setPanelMode("compare");
     setIsLoadingPassage(false);
   }
 
-  async function explainVerse(verse: PassageVerse) {
-    setActiveVerse(verse);
-    setPanelMode("explain");
+  async function explainSelection() {
+    if (!selectedVerseList.length) return;
+    openPanel("explain");
     setIsExplaining(true);
     setExplanation("");
 
@@ -242,7 +281,7 @@ export function BibleReader({
       body: JSON.stringify({
         book: passage.book.id,
         chapter: passage.chapter,
-        verse: verse.verse,
+        verses: selectedVerseList.map((verse) => verse.verse),
         apiKey: settings.apiKey.trim() || undefined,
         originalTranslation: selectedOriginalSource(),
       }),
@@ -254,9 +293,10 @@ export function BibleReader({
 
   async function askVerseQuestion(event?: FormEvent) {
     event?.preventDefault();
-    if (!activeVerse || !question.trim()) return;
+    if (!selectedVerseList.length) return;
+    if (!question.trim()) return;
 
-    setPanelMode("ask");
+    openPanel("ask");
     setIsAnswering(true);
     setAnswer("");
 
@@ -266,7 +306,7 @@ export function BibleReader({
       body: JSON.stringify({
         book: passage.book.id,
         chapter: passage.chapter,
-        verse: activeVerse.verse,
+        verses: selectedVerseList.map((verse) => verse.verse),
         question,
         apiKey: settings.apiKey.trim() || undefined,
         originalTranslation: selectedOriginalSource(),
@@ -581,74 +621,108 @@ export function BibleReader({
             <span>{isLoadingPassage ? "讀取中" : "《和合本》"}</span>
           </div>
 
+          <div className="selection-toolbar" aria-label="所選經文操作">
+            <div>
+              <strong>已選 {selectedVerseList.length} 節</strong>
+              <span>{selectedVerseList.length ? selectedReference() : "剔選經文後開始查考"}</span>
+            </div>
+            <div className="selection-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  openPanel("compare");
+                }}
+                disabled={!selectedVerseList.length}
+              >
+                <Languages size={15} />
+                原文對照
+              </button>
+              <button
+                type="button"
+                onClick={() => void explainSelection()}
+                disabled={!selectedVerseList.length || isExplaining}
+              >
+                {isExplaining ? <Loader2 className="spin" size={15} /> : <Sparkles size={15} />}
+                原文解釋
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  openPanel("ask");
+                }}
+                disabled={!selectedVerseList.length}
+              >
+                <CircleHelp size={15} />
+                問經文
+              </button>
+              <button
+                type="button"
+                className="quiet-action"
+                onClick={() => {
+                  setSelectedVerses(passage.verses.map((verse) => verse.verse));
+                }}
+              >
+                全選
+              </button>
+              <button
+                type="button"
+                className="quiet-action"
+                onClick={() => {
+                  setSelectedVerses([]);
+                }}
+              >
+                清除
+              </button>
+            </div>
+          </div>
+
           <div className="verses">
             {passage.verses.map((verse) => (
               <article
                 key={verse.verse}
                 data-verse={`${passage.book.id}-${passage.chapter}-${verse.verse}`}
-                className={activeVerse?.verse === verse.verse ? "verse active" : "verse"}
+                className={
+                  selectedVerses.includes(verse.verse)
+                    ? "verse active"
+                    : "verse"
+                }
               >
-                <button
-                  className="verse-number"
-                  onClick={() => {
-                    setActiveVerse(verse);
-                    setPanelMode("compare");
-                  }}
-                >
-                  {verse.verse}
-                </button>
+                <label className="verse-check">
+                  <input
+                    type="checkbox"
+                    checked={selectedVerses.includes(verse.verse)}
+                    onChange={() => toggleVerseSelection(verse)}
+                    aria-label={`選擇第 ${verse.verse} 節`}
+                  />
+                  <span>{verse.verse}</span>
+                </label>
                 <p>{verse.chinese}</p>
-                <div className="verse-actions">
-                  <button onClick={() => void explainVerse(verse)} title="原文解釋">
-                    <Sparkles size={15} />
-                    原文解釋
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActiveVerse(verse);
-                      setPanelMode("compare");
-                    }}
-                    title="原文對照"
-                  >
-                    <Languages size={15} />
-                    原文對照
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActiveVerse(verse);
-                      setPanelMode("ask");
-                    }}
-                    title="問經文"
-                  >
-                    <CircleHelp size={15} />
-                    問經文
-                  </button>
-                </div>
               </article>
             ))}
           </div>
         </section>
 
         {panelMode !== "closed" && (
-        <aside className="study-pane" aria-label="原文查經面板">
+        <aside ref={studyPaneRef} className="study-pane" aria-label="原文查經面板">
           <div className="panel-tabs">
             <button
               className={panelMode === "compare" ? "selected" : ""}
-              onClick={() => setPanelMode("compare")}
+              onClick={() => openPanel("compare")}
             >
               <LibraryBig size={16} />
               對照
             </button>
             <button
               className={panelMode === "explain" ? "selected" : ""}
-              onClick={() => activeVerse && void explainVerse(activeVerse)}
+              onClick={() => void explainSelection()}
+              disabled={!selectedVerseList.length}
             >
               <BookOpen size={16} />
               解釋
             </button>
             <button
               className={panelMode === "ask" ? "selected" : ""}
-              onClick={() => setPanelMode("ask")}
+              onClick={() => openPanel("ask")}
             >
               <CircleHelp size={16} />
               問經文
@@ -659,33 +733,38 @@ export function BibleReader({
             </button>
           </div>
 
-          {activeVerse ? (
+          {selectedVerseList.length ? (
             <div className="panel-body">
               <p className="reference">
-                {passage.book.displayName} {passage.chapter}:{activeVerse.verse}
+                {selectedReference()}
               </p>
 
               {panelMode === "compare" ? (
                 <div className="comparison">
-                  <div>
-                    <span>和合本</span>
-                    <p>{activeVerse.chinese}</p>
-                  </div>
-                  <div className="selected-source">
-                    <span>目前原文源頭：{originalLabels[selectedOriginalSource()]}</span>
-                    <p dir={selectedOriginalSource() === "WLC" ? "rtl" : "ltr"}>
-                      {activeVerse.alternates[selectedOriginalSource()] ||
-                        activeVerse.original ||
-                        "此節暫未有對應原文資料。"}
-                    </p>
-                  </div>
-                  {Object.entries(activeVerse.alternates).map(([translation, text]) => (
-                    translation === selectedOriginalSource() ? null : (
-                    <div key={translation}>
-                      <span>{originalLabels[translation as TranslationId]}</span>
-                      <p dir={translation === "WLC" ? "rtl" : "ltr"}>{text}</p>
-                    </div>
-                    )
+                  {selectedVerseList.map((verse) => (
+                    <section className="comparison-verse" key={verse.verse}>
+                      <h3>第 {verse.verse} 節</h3>
+                      <div>
+                        <span>和合本</span>
+                        <p>{verse.chinese}</p>
+                      </div>
+                      <div className="selected-source">
+                        <span>目前原文源頭：{originalLabels[selectedOriginalSource()]}</span>
+                        <p dir={selectedOriginalSource() === "WLC" ? "rtl" : "ltr"}>
+                          {verse.alternates[selectedOriginalSource()] ||
+                            verse.original ||
+                            "此節暫未有對應原文資料。"}
+                        </p>
+                      </div>
+                      {Object.entries(verse.alternates).map(([translation, text]) => (
+                        translation === selectedOriginalSource() ? null : (
+                        <div key={translation}>
+                          <span>{originalLabels[translation as TranslationId]}</span>
+                          <p dir={translation === "WLC" ? "rtl" : "ltr"}>{text}</p>
+                        </div>
+                        )
+                      ))}
+                    </section>
                   ))}
                 </div>
               ) : panelMode === "explain" ? (
@@ -702,11 +781,11 @@ export function BibleReader({
               ) : (
                 <form className="question-box" onSubmit={askVerseQuestion}>
                   <label>
-                    <span>問一條關於這節經文的問題</span>
+                    <span>問一條關於所選經文的問題</span>
                     <textarea
                       value={question}
                       onChange={(event) => setQuestion(event.target.value)}
-                      placeholder="例如：這節經文講緊神嘅創造，定係講道成肉身？"
+                      placeholder="例如：這幾節經文主要怎樣描述基督？"
                     />
                   </label>
                   <button type="submit" disabled={isAnswering || !question.trim()}>
@@ -720,14 +799,14 @@ export function BibleReader({
                         正在整理回答...
                       </div>
                     ) : (
-                      <pre>{answer || "輸入問題後，會按目前經文、譯本與原文源頭回答。"}</pre>
+                      <pre>{answer || "輸入問題後，會按所選經文、譯本與原文源頭回答。"}</pre>
                     )}
                   </div>
                 </form>
               )}
             </div>
           ) : (
-            <p className="empty-state">選擇一節經文開始查考。</p>
+            <p className="empty-state">剔選一節或多節經文開始查考。</p>
           )}
         </aside>
         )}
