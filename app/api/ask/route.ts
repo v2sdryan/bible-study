@@ -47,7 +47,7 @@ function fallbackAnswer(
     `和合本：${verse.chinese}`,
     verse.original ? `原文：${verse.original}` : "原文：此節暫未有對應原文資料。",
     "",
-    "Gemini API key 未設定，所以暫時只能顯示經文與來源。請在設定輸入 Gemini API key 後再提問。",
+    "Gemini API key 未設定，所以暫時只能顯示經文與來源。請在 Vercel 設定 GEMINI_API_KEY，或在設定輸入 Gemini API key 後再提問。",
   ].join("\n");
 }
 
@@ -56,7 +56,7 @@ async function answerWithGemini(
   question: string,
   browserApiKey?: string,
 ) {
-  const apiKey = browserApiKey || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || browserApiKey;
   const model = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
   if (!apiKey) return fallbackAnswer(verse, question);

@@ -50,7 +50,7 @@ async function generateWithGemini(
   verse: NonNullable<ReturnType<typeof getVerse>>,
   browserApiKey?: string,
 ) {
-  const apiKey = browserApiKey || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || browserApiKey;
   const model = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
   if (!apiKey) return fallbackExplanation(verse);
