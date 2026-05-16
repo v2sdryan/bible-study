@@ -58,6 +58,10 @@ type ReaderSettings = {
   accentColor: string;
   lineColor: string;
   apiKey: string;
+  oldOriginalSource: Extract<TranslationId, "WLC">;
+  newOriginalSource: Extract<TranslationId, "Byz" | "TR" | "StatResGNT">;
+  originalSourceRequest: string;
+  originalSourceSuggestion: string;
 };
 
 const defaultSettings: ReaderSettings = {
@@ -70,17 +74,39 @@ const defaultSettings: ReaderSettings = {
   accentColor: "#8c2f12",
   lineColor: "#b86a1e",
   apiKey: "",
+  oldOriginalSource: "WLC",
+  newOriginalSource: "Byz",
+  originalSourceRequest: "",
+  originalSourceSuggestion: "",
 };
 
 const settingStorageKey = "bible-study-reader-settings";
 
 const originalLabels: Record<TranslationId, string> = {
   ChiUn: "和合本",
-  WLC: "WLC 希伯來文",
-  Byz: "Byz 希臘文",
-  TR: "TR 希臘文",
-  StatResGNT: "StatResGNT 希臘文",
+  WLC: "《威斯敏斯特列寧格勒抄本》",
+  Byz: "《拜占庭文本形態二零一三》",
+  TR: "《公認文本》",
+  StatResGNT: "《統計復原希臘文新約》",
 };
+
+function matchOriginalSource(request: string) {
+  const text = request.trim().toLowerCase();
+  if (!text) return "";
+  if (/舊約|希伯來|亞蘭|馬所拉|masoretic|wlc|列寧格勒/.test(text)) {
+    return "已配對：舊約用《威斯敏斯特列寧格勒抄本》。";
+  }
+  if (/公認|欽定|受納|received|receptus|tr|kjv/.test(text)) {
+    return "已配對：新約用《公認文本》。";
+  }
+  if (/統計|復原|現代|批判|critical|nestle|aland|ubs|stat/.test(text)) {
+    return "已配對：新約用《統計復原希臘文新約》。";
+  }
+  if (/拜占庭|多數|教會傳統|byz|majority|byzantine/.test(text)) {
+    return "已配對：新約用《拜占庭文本形態二零一三》。";
+  }
+  return "暫時未能肯定配對。可試輸入：拜占庭、公認文本、現代復原、舊約希伯來文。";
+}
 
 export function BibleReader({
   initialBooks,
@@ -160,6 +186,28 @@ export function BibleReader({
     setSavedMessage("已重設");
   }
 
+  function selectedOriginalSource() {
+    return passage.book.testament === "old"
+      ? settings.oldOriginalSource
+      : settings.newOriginalSource;
+  }
+
+  function applyOriginalSourceRequest() {
+    const suggestion = matchOriginalSource(settings.originalSourceRequest);
+    let nextSettings = { ...settings, originalSourceSuggestion: suggestion };
+    if (suggestion.includes("公認文本")) {
+      nextSettings = { ...nextSettings, newOriginalSource: "TR" };
+    } else if (suggestion.includes("統計復原")) {
+      nextSettings = { ...nextSettings, newOriginalSource: "StatResGNT" };
+    } else if (suggestion.includes("拜占庭")) {
+      nextSettings = { ...nextSettings, newOriginalSource: "Byz" };
+    } else if (suggestion.includes("威斯敏斯特")) {
+      nextSettings = { ...nextSettings, oldOriginalSource: "WLC" };
+    }
+    setSettings(nextSettings);
+    setSavedMessage("");
+  }
+
   async function loadPassage(book = selectedBook, chapter = selectedChapter) {
     setIsLoadingPassage(true);
     const response = await fetch(
@@ -189,6 +237,7 @@ export function BibleReader({
         chapter: passage.chapter,
         verse: verse.verse,
         apiKey: settings.apiKey.trim() || undefined,
+        originalTranslation: selectedOriginalSource(),
       }),
     });
     const data = await response.json();
@@ -310,6 +359,52 @@ export function BibleReader({
                 onChange={(event) => updateSetting("fontSize", Number(event.target.value))}
               />
             </label>
+
+            <div className="source-settings">
+              <p className="setting-title">原文源頭</p>
+              <label className="setting-row">
+                <span>舊約原文源頭</span>
+                <select value={settings.oldOriginalSource} disabled>
+                  <option value="WLC">《威斯敏斯特列寧格勒抄本》</option>
+                </select>
+              </label>
+              <label className="setting-row">
+                <span>新約原文源頭</span>
+                <select
+                  value={settings.newOriginalSource}
+                  onChange={(event) =>
+                    updateSetting(
+                      "newOriginalSource",
+                      event.target.value as ReaderSettings["newOriginalSource"],
+                    )
+                  }
+                >
+                  <option value="Byz">《拜占庭文本形態二零一三》</option>
+                  <option value="TR">《公認文本》</option>
+                  <option value="StatResGNT">《統計復原希臘文新約》</option>
+                </select>
+              </label>
+              <label className="setting-row">
+                <span>直接講你想要咩原文源頭</span>
+                <input
+                  value={settings.originalSourceRequest}
+                  placeholder="例如：我想用公認文本 / 拜占庭 / 現代復原 / 舊約希伯來文"
+                  onChange={(event) =>
+                    updateSetting("originalSourceRequest", event.target.value)
+                  }
+                />
+              </label>
+              <button
+                type="button"
+                className="source-match-button"
+                onClick={applyOriginalSourceRequest}
+              >
+                配對源頭
+              </button>
+              {settings.originalSourceSuggestion && (
+                <p className="source-suggestion">{settings.originalSourceSuggestion}</p>
+              )}
+            </div>
 
             <div className="color-grid">
               <label>
@@ -522,11 +617,21 @@ export function BibleReader({
                     <span>和合本</span>
                     <p>{activeVerse.chinese}</p>
                   </div>
+                  <div className="selected-source">
+                    <span>目前原文源頭：{originalLabels[selectedOriginalSource()]}</span>
+                    <p dir={selectedOriginalSource() === "WLC" ? "rtl" : "ltr"}>
+                      {activeVerse.alternates[selectedOriginalSource()] ||
+                        activeVerse.original ||
+                        "此節暫未有對應原文資料。"}
+                    </p>
+                  </div>
                   {Object.entries(activeVerse.alternates).map(([translation, text]) => (
+                    translation === selectedOriginalSource() ? null : (
                     <div key={translation}>
                       <span>{originalLabels[translation as TranslationId]}</span>
                       <p dir={translation === "WLC" ? "rtl" : "ltr"}>{text}</p>
                     </div>
+                    )
                   ))}
                 </div>
               ) : (

@@ -7,13 +7,14 @@ const requestSchema = z.object({
   chapter: z.number().int().positive(),
   verse: z.number().int().positive(),
   apiKey: z.string().trim().optional(),
+  originalTranslation: z.enum(["WLC", "Byz", "TR", "StatResGNT"]).optional(),
 });
 
 function originalSourceName(translation: string) {
-  if (translation === "WLC") return "WLC: Westminster Leningrad Codex";
-  if (translation === "Byz") return "Byz: Byzantine Textform 2013";
-  if (translation === "TR") return "TR: Textus Receptus";
-  if (translation === "StatResGNT") return "StatResGNT: Statistical Restoration Greek NT";
+  if (translation === "WLC") return "《威斯敏斯特列寧格勒抄本》";
+  if (translation === "Byz") return "《拜占庭文本形態二零一三》";
+  if (translation === "TR") return "《公認文本》";
+  if (translation === "StatResGNT") return "《統計復原希臘文新約》";
   return translation;
 }
 
@@ -25,9 +26,9 @@ function sourceHeader(verse: NonNullable<ReturnType<typeof getVerse>>) {
 
   return [
     "【釋經來源】",
-    "中文譯本：ChiUn 和合本（繁體字）",
+    "中文譯本：《和合本（繁體字）》",
     `原文底本：${originalSourceName(verse.originalTranslation)}`,
-    "資料來源：scrollmapper/bible_databases GitHub repository",
+    "資料來源：GitHub「scrollmapper/bible_databases」聖經資料庫",
     `原文判斷：${testamentNote}`,
   ].join("\n");
 }
@@ -113,6 +114,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Verse not found" }, { status: 404 });
   }
 
-  const explanation = await generateWithGemini(verse, parsed.data.apiKey);
+  const requestedOriginal = parsed.data.originalTranslation;
+  const explanationVerse =
+    requestedOriginal && verse.alternates[requestedOriginal]
+      ? {
+          ...verse,
+          originalTranslation: requestedOriginal,
+          original: verse.alternates[requestedOriginal] ?? verse.original,
+        }
+      : verse;
+
+  const explanation = await generateWithGemini(explanationVerse, parsed.data.apiKey);
   return NextResponse.json({ explanation });
 }
