@@ -16,6 +16,8 @@ const requestSchema = z.object({
 
 type VerseRecord = NonNullable<ReturnType<typeof getVerse>>;
 const quotaExhaustedMessage = "Gemini 回應失敗：網站預設 API key 已達使用限制。請在設定輸入你自己的 Gemini API key。";
+const geminiUnavailableMessage = "Gemini 暫時繁忙或服務不可用，系統已嘗試網站預設 API key。請稍後再試；如果持續出現，請在設定輸入你自己的 Gemini API key。";
+const missingApiKeyMessage = "Gemini API key 未設定，所以暫時只能顯示經文與來源。請在 Vercel 設定 GEMINI_API_KEY，或在設定輸入 Gemini API key 後再提問。";
 
 function geminiApiKeys(browserApiKey?: string) {
   return [
@@ -29,7 +31,11 @@ function geminiApiKeys(browserApiKey?: string) {
 }
 
 function shouldTryNextKey(status: number) {
-  return status === 429;
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+function serviceFailureMessage(status: number) {
+  return status === 429 ? quotaExhaustedMessage : `${geminiUnavailableMessage}\n狀態碼：${status}`;
 }
 
 function originalSourceName(translation: string) {
@@ -58,6 +64,7 @@ function sourceHeader(verse: VerseRecord) {
 function fallbackAnswer(
   verses: VerseRecord[],
   question: string,
+  footer = missingApiKeyMessage,
 ) {
   const firstVerse = verses[0];
   return [
@@ -72,7 +79,7 @@ function fallbackAnswer(
       "",
     ]),
     "",
-    "Gemini API key 未設定，所以暫時只能顯示經文與來源。請在 Vercel 設定 GEMINI_API_KEY，或在設定輸入 Gemini API key 後再提問。",
+    footer,
   ].join("\n");
 }
 
@@ -146,9 +153,9 @@ ${passageText}
       const hasNextKey = index < apiKeys.length - 1;
       if (hasNextKey && shouldTryNextKey(response.status)) continue;
       if (shouldTryNextKey(response.status)) {
-        return `${fallbackAnswer(verses, question)}\n\n${quotaExhaustedMessage}`;
+        return fallbackAnswer(verses, question, serviceFailureMessage(response.status));
       }
-      return `${fallbackAnswer(verses, question)}\n\nGemini 回應失敗：${response.status}`;
+      return fallbackAnswer(verses, question, `Gemini 回應失敗：${response.status}`);
     }
 
     const data = await response.json();
@@ -160,7 +167,7 @@ ${passageText}
     );
   }
 
-  return `${fallbackAnswer(verses, question)}\n\n${quotaExhaustedMessage}`;
+  return fallbackAnswer(verses, question, quotaExhaustedMessage);
 }
 
 export async function POST(request: Request) {

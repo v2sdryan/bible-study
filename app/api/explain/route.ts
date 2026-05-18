@@ -15,6 +15,8 @@ const requestSchema = z.object({
 
 type VerseRecord = NonNullable<ReturnType<typeof getVerse>>;
 const quotaExhaustedMessage = "Gemini 回應失敗：網站預設 API key 已達使用限制。請在設定輸入你自己的 Gemini API key。";
+const geminiUnavailableMessage = "Gemini 暫時繁忙或服務不可用，系統已嘗試網站預設 API key。請稍後再試；如果持續出現，請在設定輸入你自己的 Gemini API key。";
+const missingApiKeyMessage = "Gemini API key 未設定，所以暫時顯示基本原文對照。你可以在右上角設定輸入 API key，或在 Vercel 設定 GEMINI_API_KEY。";
 
 function geminiApiKeys(browserApiKey?: string) {
   return [
@@ -28,7 +30,11 @@ function geminiApiKeys(browserApiKey?: string) {
 }
 
 function shouldTryNextKey(status: number) {
-  return status === 429;
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+function serviceFailureMessage(status: number) {
+  return status === 429 ? quotaExhaustedMessage : `${geminiUnavailableMessage}\n狀態碼：${status}`;
 }
 
 function originalSourceName(translation: string) {
@@ -54,7 +60,7 @@ function sourceHeader(verse: VerseRecord) {
   ].join("\n");
 }
 
-function fallbackExplanation(verses: VerseRecord[]) {
+function fallbackExplanation(verses: VerseRecord[], footer = missingApiKeyMessage) {
   const firstVerse = verses[0];
   return [
     sourceHeader(firstVerse),
@@ -69,7 +75,7 @@ function fallbackExplanation(verses: VerseRecord[]) {
       "",
     ]),
     "",
-    "Gemini API key 未設定，所以暫時顯示基本原文對照。你可以在右上角設定輸入 API key，或在 Vercel 設定 GEMINI_API_KEY。",
+    footer,
   ].join("\n");
 }
 
@@ -140,9 +146,9 @@ ${passageText}
       const hasNextKey = index < apiKeys.length - 1;
       if (hasNextKey && shouldTryNextKey(response.status)) continue;
       if (shouldTryNextKey(response.status)) {
-        return `${fallbackExplanation(verses)}\n\n${quotaExhaustedMessage}`;
+        return fallbackExplanation(verses, serviceFailureMessage(response.status));
       }
-      return `${fallbackExplanation(verses)}\n\nGemini 回應失敗：${response.status}`;
+      return fallbackExplanation(verses, `Gemini 回應失敗：${response.status}`);
     }
 
     const data = await response.json();
@@ -154,7 +160,7 @@ ${passageText}
     );
   }
 
-  return `${fallbackExplanation(verses)}\n\n${quotaExhaustedMessage}`;
+  return fallbackExplanation(verses, quotaExhaustedMessage);
 }
 
 export async function POST(request: Request) {
