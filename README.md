@@ -7,7 +7,7 @@
 - 和合本繁體閱讀器，支援書卷及章節切換
 - 每節經文有「原文解釋」及「原文對照」
 - 繁中、希伯來文、希臘文搜尋
-- Gemini API server-side route，預設 model 為 `gemini-3.1-flash-lite`
+- Gemini API server-side route，預設 model 為 `gemini-3.5-flash`
 - 可直接部署到 Vercel
 
 ## Data Source
@@ -37,7 +37,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```env
 GEMINI_API_KEY=your_google_ai_studio_key
-GEMINI_MODEL=gemini-3.1-flash-lite
+GEMINI_MODEL=gemini-3.5-flash
 ```
 
 Do not use `NEXT_PUBLIC_` for `GEMINI_API_KEY`; it must stay server-side.

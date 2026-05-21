@@ -84,7 +84,7 @@ async function generateWithGemini(
   browserApiKey?: string,
 ) {
   const apiKeys = geminiApiKeys(browserApiKey);
-  const model = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
+  const model = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
   if (!apiKeys.length) return fallbackExplanation(verses);
 
